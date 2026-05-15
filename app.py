@@ -86,15 +86,49 @@ if st.button("Submit"):
         df_new.to_excel(temp_file.name, index=False)
 
         # ✅ Dummy email placeholders (we fix next step)
-        SENDER_EMAIL = "test@email.com"
-        PASSWORD = "password"
+        SENDER_EMAIL = st.secrets["email"]
+        PASSWORD = st.secrets["password"]
         RECEIVERS = [email, SENDER_EMAIL]
         msg = EmailMessage()
         msg["Subject"] = f"Inventory Submission - {company} - {previous_month}"
         msg["From"] = SENDER_EMAIL
         msg["To"] = ", ".join(RECEIVERS)
-        msg.set_content("Test email setup")
-        st.success("✅ Email logic added (not sending yet)")
+        
+msg.set_content(f"""
+Hello,
+
+Inventory submitted successfully.
+
+Company: {company}
+Month: {previous_month}
+
+Please find attached Excel file.
+
+Regards,
+Inventory System
+""")
+
+        # ✅ Attach Excel
+with open(temp_file.name, "rb") as f:
+    msg.add_attachment(
+        f.read(),
+        maintype="application",
+        subtype="octet-stream",
+        filename="Inventory_Data.xlsx"
+    )
+
+# ✅ Send Email
+try:
+    with smtplib.SMTP("smtp.office365.com", 587) as server:
+        server.starttls()
+        server.login(SENDER_EMAIL, PASSWORD)
+        server.send_message(msg)
+
+    st.success("✅ Data submitted & email sent!")
+
+except Exception as e:
+    st.error(f"❌ Email failed: {e}")
+
 
 # ✅ Admin View
 if st.checkbox("🔍 View All Data"):
