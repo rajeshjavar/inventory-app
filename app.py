@@ -55,7 +55,7 @@ edited_df = st.data_editor(df_table, num_rows="fixed")
 # ✅ SUBMIT BUTTON
 if st.button("Submit"):
 
-    if not company or not email:
+    if company.strip() == "" or email.strip() == "":
         st.error("❌ Please fill all mandatory fields")
 
     else:
