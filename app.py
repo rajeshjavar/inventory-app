@@ -70,3 +70,60 @@ if st.button("Submit"):
                     "Email": email.strip(),
                     "Month": previous_month,
                     "SKU": row["SKU"],
+                    "Quantity": row["Enter Now"],
+                    "Segment": row["Segment"]
+                })
+
+            df_new = pd.DataFrame(save_data)
+
+            # ✅ CREATE CSV (NO EXCEL ERROR)
+            temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".csv")
+            df_new.to_csv(temp_file.name, index=False)
+
+            # ✅ LOAD SECRETS
+            SENDER_EMAIL = st.secrets["email"]
+            PASSWORD = st.secrets["password"]
+
+            # ✅ RECEIVERS
+            RECEIVERS = [email.strip(), SENDER_EMAIL]
+
+            # ✅ EMAIL OBJECT
+            msg = EmailMessage()
+            msg["Subject"] = f"Inventory Submission - {company} - {previous_month}"
+            msg["From"] = SENDER_EMAIL
+            msg["To"] = ", ".join(RECEIVERS)
+
+            msg.set_content(f"""
+Hello,
+
+Inventory submitted successfully.
+
+Company: {company}
+Month: {previous_month}
+
+Please find attached file.
+
+Regards,
+Inventory System
+""")
+
+            # ✅ ATTACH FILE
+            with open(temp_file.name, "rb") as f:
+                msg.add_attachment(
+                    f.read(),
+                    maintype="text",
+                    subtype="csv",
+                    filename="Inventory_Data.csv"
+                )
+
+            # ✅ SEND EMAIL
+            with smtplib.SMTP("smtp.office365.com", 587) as server:
+                server.starttls()
+                server.login(SENDER_EMAIL, PASSWORD)
+                server.send_message(msg)
+
+            st.success("✅ Data submitted & email sent successfully!")
+
+        except Exception as e:
+            st.error(f"❌ Error: {e}")
+``
