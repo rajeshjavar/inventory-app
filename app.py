@@ -5,125 +5,79 @@ import smtplib
 from email.message import EmailMessage
 import tempfile
 
-# ✅ TITLE
+# TITLE
 st.title("📦 Distributor Inventory Submission")
 
-# ✅ INPUTS
-company = st.text_input("Company Name *", key="company_input")
-email = st.text_input("Email ID *", key="email_input")
+# INPUTS
+company = st.text_input("Company Name")
+email = st.text_input("Email ID")
 
-# ✅ MONTH LOGIC
+# MONTH LOGIC
 months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
           "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
 current_month = datetime.now().month
+previous_month = months[current_month - 2] if current_month > 1 else "Dec"
 
-if current_month == 1:
-    previous_month = "Dec"
-else:
-    previous_month = months[current_month - 2]
+st.info(f"Enter Inventory for: {previous_month}")
 
-st.info(f"📅 Enter Inventory for: {previous_month}")
-
-# ✅ SKU MASTER (sample)
+# SAMPLE SKU MASTER
 sku_master = pd.DataFrame({
-    "Segment": [
-        "MD_AGA ACCESSORIES",
-        "MD_AGA ACCESSORIES",
-        "MD_CONGENITAL ASD"
-    ],
-    "SKU": [
-        "9-ATV07F45/80",
-        "9-ATV08F45/80",
-        "9-ASD-010"
-    ]
+    "SKU": ["9-ATV07F45/80", "9-ATV08F45/80", "9-ASD-010"],
+    "Segment": ["MD_AGA ACCESSORIES", "MD_AGA ACCESSORIES", "MD_CONGENITAL ASD"]
 })
 
-# ✅ BUILD TABLE
-df_table = pd.DataFrame({
-    "SKU": sku_master["SKU"],
-    "Segment": sku_master["Segment"],
-    "Previous Month": [0, 0, 0],
-    "Enter Now": [0, 0, 0]
-})
+# TABLE
+df = sku_master.copy()
+df["Previous Month"] = [10, 20, 30]
+df["Enter Now"] = [0, 0, 0]
 
-st.subheader("📊 Enter Inventory")
+st.subheader("Enter Inventory")
 
-# ✅ IMPORTANT → always visible
-edited_df = st.data_editor(df_table, num_rows="fixed")
+edited_df = st.data_editor(df, num_rows="fixed")
 
-# ✅ SUBMIT
+# SUBMIT BUTTON
 if st.button("Submit"):
 
-    # ✅ FIXED VALIDATION (THIS WAS YOUR ISSUE)
-    if company is None or email is None or company.strip() == "" or email.strip() == "":
-        st.error("❌ Please fill all mandatory fields")
-
+    # ✅ VERY SIMPLE VALIDATION (NO BUG)
+    if company.strip() == "" or email.strip() == "":
+        st.warning("Enter Company and Email properly")
     else:
         try:
-            # ✅ PREPARE DATA
-            save_data = []
+            # CREATE DATA
+            df_new = edited_df.copy()
+            df_new["Company"] = company
+            df_new["Email"] = email
+            df_new["Month"] = previous_month
 
-            for _, row in edited_df.iterrows():
-                save_data.append({
-                    "Company": company.strip(),
-                    "Email": email.strip(),
-                    "Month": previous_month,
-                    "SKU": row["SKU"],
-                    "Quantity": row["Enter Now"],
-                    "Segment": row["Segment"]
-                })
+            # SAVE CSV TEMP
+            temp = tempfile.NamedTemporaryFile(delete=False, suffix=".csv")
+            df_new.to_csv(temp.name, index=False)
 
-            df_new = pd.DataFrame(save_data)
+            # LOAD SECRETS
+            sender = st.secrets["email"]
+            password = st.secrets["password"]
 
-            # ✅ CREATE CSV (NO EXCEL ERROR)
-            temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".csv")
-            df_new.to_csv(temp_file.name, index=False)
-
-            # ✅ LOAD SECRETS
-            SENDER_EMAIL = st.secrets["email"]
-            PASSWORD = st.secrets["password"]
-
-            # ✅ RECEIVERS
-            RECEIVERS = [email.strip(), SENDER_EMAIL]
-
-            # ✅ EMAIL OBJECT
+            # CREATE MAIL
             msg = EmailMessage()
-            msg["Subject"] = f"Inventory Submission - {company} - {previous_month}"
-            msg["From"] = SENDER_EMAIL
-            msg["To"] = ", ".join(RECEIVERS)
+            msg["Subject"] = f"Inventory Submission - {company}"
+            msg["From"] = sender
+            msg["To"] = f"{email},{sender}"
 
-            msg.set_content(f"""
-Hello,
+            msg.set_content("Inventory submitted. File attached.")
 
-Inventory submitted successfully.
+            # ATTACH FILE
+            with open(temp.name, "rb") as f:
+                msg.add_attachment(f.read(), maintype="text",
+                                   subtype="csv", filename="Inventory.csv")
 
-Company: {company}
-Month: {previous_month}
-
-Please find attached file.
-
-Regards,
-Inventory System
-""")
-
-            # ✅ ATTACH FILE
-            with open(temp_file.name, "rb") as f:
-                msg.add_attachment(
-                    f.read(),
-                    maintype="text",
-                    subtype="csv",
-                    filename="Inventory_Data.csv"
-                )
-
-            # ✅ SEND EMAIL
+            # SEND MAIL
             with smtplib.SMTP("smtp.office365.com", 587) as server:
                 server.starttls()
-                server.login(SENDER_EMAIL, PASSWORD)
+                server.login(sender, password)
                 server.send_message(msg)
 
-            st.success("✅ Data submitted & email sent successfully!")
+            st.success("✅ Submitted & Email Sent")
 
         except Exception as e:
-            st.error(f"❌ Error: {e}")
-
+            st.error(f"Error: {e}")
