@@ -1,10 +1,12 @@
 
-mport smtplib
-from email.message import EmailMessage
-import tempfile
+
 import streamlit as st
 import pandas as pd
 from datetime import datetime
+import smtplib
+from email.message import EmailMessage
+import tempfile
+
 
 st.title("📦 Distributor Inventory Submission")
 
